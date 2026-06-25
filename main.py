@@ -1,22 +1,35 @@
 from pathlib import Path
-from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-from ssfs.openapi_loader import load_openapi
+from dev.routes import router as dev_router
+from endpoints import cars, users
 from ssfs.routes import router as ssfs_router
-from tests.routes import router as tests_router
 
 load_dotenv(Path(__file__).resolve().parent / ".env", override=False)
 
-app = FastAPI(title="Random User POC", version="1.0.0")
+app = FastAPI(
+    title="FastAPI Sample",
+    summary="Cars CRUD, random users, and a Marketo SSFS flow action.",
+    version="1.0.0",
+)
+
+app.include_router(cars.router)
+app.include_router(users.router)
 app.include_router(ssfs_router)
-app.include_router(tests_router)
+app.include_router(dev_router)
 
 
-def ssfs_openapi() -> dict[str, Any]:
-    return load_openapi()
+@app.get("/health", tags=["meta"])
+def health() -> dict[str, str]:
+    return {"message": "hello andres"}
 
 
-app.openapi = ssfs_openapi
+@app.get("/", tags=["meta"])
+def root() -> dict[str, str]:
+    return {
+        "docs": "/docs",
+        "openapi": "/openapi.json",
+        "marketo_install": "/install",
+    }
