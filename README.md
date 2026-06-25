@@ -1,19 +1,35 @@
 # fastapi-sample
 
-Single-file FastAPI MVP. Two endpoint groups:
+A minimal, idiomatic FastAPI app. Routes, schemas, and the app entry point are split into separate modules.
 
-| Route        | Style              | Demonstrates                                      |
-|--------------|--------------------|---------------------------------------------------|
-| `/cars`      | Full REST CRUD     | All verbs — `GET`, `POST`, `PUT`, `PATCH`, `DELETE` — on a `Car` (color + model). |
-| `/tools`     | MCP-style dispatch | `GET /tools` to discover tools with JSON Schema, `POST /tools/run` to call one by name. |
+| Route   | Style              | Demonstrates                                                          |
+|---------|--------------------|-----------------------------------------------------------------------|
+| `/cars` | Full REST CRUD     | All verbs — `GET`, `POST`, `PUT`, `PATCH`, `DELETE` — on `Car { id, color, model }`. |
+| `/tools`| MCP-style dispatch | `GET /tools` lists tools with JSON Schema; `POST /tools/run` dispatches by name. |
 
-No env vars, no external services, no nested packages — everything lives in `main.py`.
+No env vars, no external services.
+
+## Layout
+
+```
+.
+├── main.py               # FastAPI app, includes routers
+├── routers/
+│   ├── cars.py           # /cars endpoints
+│   └── tools.py          # /tools endpoints + tool handlers
+├── schemas/
+│   ├── cars.py           # Pydantic models for /cars
+│   └── tools.py          # Pydantic models for /tools
+└── requirements.txt
+```
 
 ## Run
 
 ```bash
-uv sync
-uv run uvicorn main:app --reload
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
 Auto-generated docs: <http://localhost:8000/docs>.
