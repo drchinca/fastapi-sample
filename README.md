@@ -2,10 +2,10 @@
 
 A minimal, idiomatic FastAPI app. Routes, schemas, and the app entry point are split into separate modules.
 
-| Route   | Style              | Demonstrates                                                          |
-|---------|--------------------|-----------------------------------------------------------------------|
-| `/cars` | Full REST CRUD     | All verbs — `GET`, `POST`, `PUT`, `PATCH`, `DELETE` — on `Car { id, color, model }`. |
-| `/tools`| MCP-style dispatch | `GET /tools` lists tools with JSON Schema; `POST /tools/run` dispatches by name. |
+| Route     | Style          | Demonstrates                                                                    |
+|-----------|----------------|---------------------------------------------------------------------------------|
+| `/cars`   | Full REST CRUD | All verbs — `GET`, `POST`, `PUT`, `PATCH`, `DELETE` — on `Car { id, color, model }`. |
+| `/health` | GET            | Liveness probe; returns `{"message": "hello andres"}`.                          |
 
 No env vars, no external services.
 
@@ -14,12 +14,10 @@ No env vars, no external services.
 ```
 .
 ├── main.py               # FastAPI app, includes routers
-├── routers/
-│   ├── cars.py           # /cars endpoints
-│   └── tools.py          # /tools endpoints + tool handlers
+├── endpoints/
+│   └── cars.py           # /cars endpoints
 ├── schemas/
-│   ├── cars.py           # Pydantic models for /cars
-│   └── tools.py          # Pydantic models for /tools
+│   └── cars.py           # Pydantic models for /cars
 └── requirements.txt
 ```
 
@@ -29,7 +27,7 @@ No env vars, no external services.
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn main:app --reload --port 8000
 ```
 
 Auto-generated docs: <http://localhost:8000/docs>.

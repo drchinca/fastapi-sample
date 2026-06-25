@@ -1,14 +1,18 @@
 from fastapi import FastAPI
 
-from routers import cars, tools
+from endpoints import cars
 
 app = FastAPI(
     title="FastAPI Sample",
-    summary="Two endpoint groups: full CRUD on /cars and an MCP-style tool dispatcher on /tools.",
+    summary="Minimal FastAPI app with full CRUD on /cars.",
 )
 
 app.include_router(cars.router)
-app.include_router(tools.router)
+
+
+@app.get("/health", tags=["meta"])
+def health() -> dict[str, str]:
+    return {"message": "hello andres"}
 
 
 @app.get("/", tags=["meta"])
