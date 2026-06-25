@@ -1,22 +1,27 @@
 from typing import Any
 
 from fastapi import Depends, FastAPI
-from fastapi.openapi.utils import get_openapi
-from fastapi.security import HTTPBearer
+from fastapi.security import APIKeyHeader
 
 from endpoints import cars, users
+from openapi_config import build_marketo_openapi
 
-bearer_auth = HTTPBearer(
-    scheme_name="bearerAuth",
-    description="Bearer token for Adobe Marketo POC integrations.",
+api_key_auth = APIKeyHeader(
+    name="x-api-key",
+    scheme_name="apiKey",
+    description="API key header used by Marketo to authenticate with this service.",
     auto_error=False,
 )
 
 app = FastAPI(
     title="FastAPI Sample",
     summary="Minimal FastAPI app with CRUD on /cars and random users on /users.",
-    version="0.2.0",
-    dependencies=[Depends(bearer_auth)],
+    description=(
+        "Adobe Marketo POC service exposing user and car endpoints. "
+        "OpenAPI is configured for Marketo import with apiKey security."
+    ),
+    version="0.3.0",
+    dependencies=[Depends(api_key_auth)],
 )
 
 app.include_router(cars.router)
@@ -24,33 +29,7 @@ app.include_router(users.router)
 
 
 def custom_openapi() -> dict[str, Any]:
-    if app.openapi_schema:
-        return app.openapi_schema
-
-    openapi_schema = get_openapi(
-        title=app.title,
-        version=app.version,
-        summary=app.summary,
-        routes=app.routes,
-    )
-
-    openapi_schema.setdefault("components", {}).setdefault("securitySchemes", {})[
-        "bearerAuth"
-    ] = {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Bearer token for Adobe Marketo POC integrations.",
-    }
-    openapi_schema["security"] = [{"bearerAuth": []}]
-
-    for path_item in openapi_schema.get("paths", {}).values():
-        for operation in path_item.values():
-            if isinstance(operation, dict) and "responses" in operation:
-                operation["security"] = [{"bearerAuth": []}]
-
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+    return build_marketo_openapi(app)
 
 
 app.openapi = custom_openapi
