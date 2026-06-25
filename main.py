@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 
-from endpoints import cars
+from endpoints import cars, users
 
 app = FastAPI(
     title="FastAPI Sample",
-    summary="Minimal FastAPI app with full CRUD on /cars.",
+    summary="Minimal FastAPI app with CRUD on /cars and random users on /users.",
 )
 
 app.include_router(cars.router)
+app.include_router(users.router)
 
 
 @app.get("/health", tags=["meta"])
