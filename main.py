@@ -1,31 +1,23 @@
 from typing import Any
 
 from fastapi import Depends, FastAPI
-from fastapi.security import APIKeyHeader
 
+from auth import require_marketo_auth
 from endpoints import cars, users
 from openapi_config import build_marketo_openapi
-
-api_key_auth = APIKeyHeader(
-    name="x-api-key",
-    scheme_name="apiKey",
-    description="API key header used by Marketo to authenticate with this service.",
-    auto_error=False,
-)
 
 app = FastAPI(
     title="FastAPI Sample",
     summary="Minimal FastAPI app with CRUD on /cars and random users on /users.",
     description=(
         "Adobe Marketo POC service exposing user and car endpoints. "
-        "OpenAPI is configured for Marketo import with apiKey security."
+        "OpenAPI supports Basic auth or x-api-key authentication."
     ),
-    version="0.3.0",
-    dependencies=[Depends(api_key_auth)],
+    version="0.4.0",
 )
 
-app.include_router(cars.router)
-app.include_router(users.router)
+app.include_router(cars.router, dependencies=[Depends(require_marketo_auth)])
+app.include_router(users.router, dependencies=[Depends(require_marketo_auth)])
 
 
 def custom_openapi() -> dict[str, Any]:

@@ -6,16 +6,26 @@ from fastapi.openapi.utils import get_openapi
 
 OPENAPI_VERSION = "3.0.3"
 
+PUBLIC_PATHS = frozenset({"/", "/health", "/openapi.json", "/docs", "/redoc"})
+
 MARKETO_SECURITY_SCHEMES: dict[str, Any] = {
+    "basic": {
+        "type": "http",
+        "scheme": "basic",
+        "x-realm-required": False,
+        "description": "HTTP Basic auth using MARKETO_USER and MARKETO_PASSWORD.",
+    },
     "apiKey": {
         "type": "apiKey",
         "name": "x-api-key",
         "in": "header",
-        "description": "API key header used by Marketo to authenticate with this service.",
-    }
+        "description": "API key header using MARKETO_API_KEY.",
+    },
 }
 
-MARKETO_SECURITY: list[dict[str, list[str]]] = [{"apiKey": []}]
+# Marketo accepts basic or apiKey; basic first matches common SSFS deployments.
+MARKETO_SECURITY: list[dict[str, list[str]]] = [{"basic": []}, {"apiKey": []}]
+PUBLIC_SECURITY: list[dict[str, list[str]]] = []
 
 
 def get_server_url() -> str:
@@ -50,10 +60,11 @@ def build_marketo_openapi(app: FastAPI) -> dict[str, Any]:
     components["securitySchemes"] = MARKETO_SECURITY_SCHEMES
     openapi_schema["security"] = MARKETO_SECURITY
 
-    for path_item in openapi_schema.get("paths", {}).values():
+    for path, path_item in openapi_schema.get("paths", {}).items():
+        operation_security = PUBLIC_SECURITY if path in PUBLIC_PATHS else MARKETO_SECURITY
         for operation in path_item.values():
             if isinstance(operation, dict) and "responses" in operation:
-                operation["security"] = MARKETO_SECURITY
+                operation["security"] = operation_security
 
     app.openapi_schema = openapi_schema
     return openapi_schema
@@ -69,16 +80,21 @@ def validate_marketo_openapi(schema: dict[str, Any]) -> list[str]:
         errors.append("missing root-level security")
 
     security_schemes = schema.get("components", {}).get("securitySchemes", {})
-    if "apiKey" not in security_schemes:
-        errors.append("missing components.securitySchemes.apiKey")
+    if "basic" not in security_schemes and "apiKey" not in security_schemes:
+        errors.append("missing components.securitySchemes.basic or apiKey")
+
+    basic_scheme = security_schemes.get("basic", {})
+    if basic_scheme and basic_scheme.get("scheme") != "basic":
+        errors.append("basic scheme must use scheme basic")
 
     api_key_scheme = security_schemes.get("apiKey", {})
-    if api_key_scheme.get("type") != "apiKey":
-        errors.append("apiKey scheme must use type apiKey")
-    if api_key_scheme.get("in") not in {"header", "query"}:
-        errors.append("apiKey scheme must declare in: header or query")
-    if not api_key_scheme.get("name"):
-        errors.append("apiKey scheme must declare name")
+    if api_key_scheme:
+        if api_key_scheme.get("type") != "apiKey":
+            errors.append("apiKey scheme must use type apiKey")
+        if api_key_scheme.get("in") not in {"header", "query"}:
+            errors.append("apiKey scheme must declare in: header or query")
+        if not api_key_scheme.get("name"):
+            errors.append("apiKey scheme must declare name")
 
     if not schema.get("servers"):
         errors.append("missing servers")
@@ -91,13 +107,14 @@ def validate_marketo_openapi(schema: dict[str, Any]) -> list[str]:
         errors.append("missing paths")
 
     for path, path_item in schema.get("paths", {}).items():
+        expected_security = PUBLIC_SECURITY if path in PUBLIC_PATHS else MARKETO_SECURITY
         for method, operation in path_item.items():
             if method.startswith("x-"):
                 continue
             if not isinstance(operation, dict):
                 continue
-            if "security" not in operation:
-                errors.append(f"missing operation security: {method.upper()} {path}")
+            if operation.get("security") != expected_security:
+                errors.append(f"unexpected operation security: {method.upper()} {path}")
             if not operation.get("responses"):
                 errors.append(f"missing responses: {method.upper()} {path}")
             else:
