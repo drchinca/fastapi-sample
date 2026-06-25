@@ -1,14 +1,12 @@
-import json
-import os
-from pathlib import Path
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, Response
 from fastapi.responses import JSONResponse
 
-from auth import require_basic_auth
-from users import random_email, random_name
+from dependencies.auth import require_basic_auth
+from ssfs.openapi_loader import load_openapi
+from utils.users import random_email, random_name
 
 router = APIRouter(tags=["ssfs"])
 
@@ -53,18 +51,9 @@ SERVICE_DEFINITION: dict[str, Any] = {
 }
 
 
-def _load_openapi() -> dict[str, Any]:
-    spec = json.loads((Path(__file__).resolve().parent / "openapi.json").read_text())
-    if base_url := os.getenv("API_BASE_URL", "").strip():
-        spec["servers"] = [{"url": base_url.rstrip("/")}]
-    elif domain := os.getenv("REPLIT_DEV_DOMAIN", "").strip():
-        spec["servers"] = [{"url": f"https://{domain}"}]
-    return spec
-
-
 @router.get("/install")
 def install() -> JSONResponse:
-    return JSONResponse(_load_openapi())
+    return JSONResponse(load_openapi())
 
 
 @router.get("/getServiceDefinition", dependencies=[Depends(require_basic_auth)])
@@ -83,6 +72,15 @@ def status() -> dict[str, list[str]]:
     dependencies=[Depends(require_basic_auth)],
 )
 def submit_async_action(payload: dict[str, Any]) -> Response:
+    callback_url = payload.get("callbackUrl")
+    callback_key = payload.get("apiCallBackKey")
+    token = payload.get("token")
+    if not callback_url or not callback_key or not token:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "callbackUrl, apiCallBackKey, and token are required"},
+        )
+
     callback_objects: list[dict[str, Any]] = []
 
     for item in payload.get("objectData", []):
@@ -101,16 +99,19 @@ def submit_async_action(payload: dict[str, Any]) -> Response:
     munchkin_id = payload.get("context", {}).get("subscription", {}).get("munchkinId", "")
     callback_body = {"munchkinId": munchkin_id, "objectData": callback_objects}
 
-    with httpx.Client(timeout=10.0) as client:
-        response = client.post(
-            payload["callbackUrl"],
-            headers={
-                "x-api-key": payload["apiCallBackKey"],
-                "x-callback-token": payload["token"],
-                "Content-Type": "application/json",
-            },
-            json=callback_body,
-        )
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            response = client.post(
+                callback_url,
+                headers={
+                    "x-api-key": callback_key,
+                    "x-callback-token": token,
+                    "Content-Type": "application/json",
+                },
+                json=callback_body,
+            )
+    except httpx.HTTPError as exc:
+        return JSONResponse(status_code=502, content={"error": str(exc)})
 
     if response.is_success:
         return Response(status_code=201)

@@ -11,8 +11,8 @@ basic_auth = HTTPBasic(auto_error=False)
 def require_basic_auth(
     credentials: Annotated[HTTPBasicCredentials | None, Depends(basic_auth)],
 ) -> None:
-    user = os.getenv("MARKETO_USER", "")
-    password = os.getenv("MARKETO_PASSWORD", "")
+    user = os.getenv("MARKETO_USER", "").strip()
+    password = os.getenv("MARKETO_PASSWORD", "").strip()
     if not user or not password:
         return
 
