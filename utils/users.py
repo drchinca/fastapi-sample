@@ -10,6 +10,6 @@ def random_email() -> str:
 
 
 def random_name() -> str:
-    first = random.choice(("Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley"))
-    last = random.choice(("Smith", "Lee", "Patel", "Garcia", "Kim", "Brown"))
+    first = random.choice(("Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Quinn", "Avery"))
+    last = random.choice(("Smith", "Lee", "Patel", "Garcia", "Kim", "Nguyen", "Brown", "Davis"))
     return f"{first} {last}"
