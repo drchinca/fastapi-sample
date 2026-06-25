@@ -7,7 +7,7 @@ Minimal FastAPI app: car CRUD, random users, a Marketo SSFS flow action, and a f
 ```
 .
 ├── main.py                 # app entry, wires routers
-├── dependencies/
+├── auth_methods/
 │   └── auth.py             # optional Basic auth for SSFS
 ├── endpoints/
 │   ├── cars.py             # /cars CRUD
@@ -22,6 +22,8 @@ Minimal FastAPI app: car CRUD, random users, a Marketo SSFS flow action, and a f
 │   └── openapi.json        # SSFS spec for Marketo install
 ├── dev/
 │   └── routes.py           # local auth/ping playground
+├── tests/
+│   └── test_ssfs.py        # auth + async + callback delivery tests
 ├── .env.example
 └── requirements.txt
 ```
@@ -101,6 +103,25 @@ Adobe Self-Service Flow Actions require fixed path names (`/submitAsyncAction`, 
 5. Enter the same Basic credentials when prompted.
 
 The flow step assigns each lead a random `generated_email` and `generated_name` via the SSFS callback.
+
+**Async contract**: `POST /submitAsyncAction` returns `201` immediately and POSTs the
+result to Marketo's `callbackUrl` in a background task (with `x-api-key` and
+`x-callback-token` headers). Synchronous invocation is not supported per the
+SSFS spec — failed callbacks are logged but do not change the 201 ack.
+
+## Tests
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+pytest tests/test_ssfs.py -v
+```
+
+14 tests cover: `/install` shape + server-URL rewrite, Basic auth gate
+(401 when wrong, 200 when valid, bypassed when env vars unset), required-field
+validation on `/submitAsyncAction`, async 201 ack, callback delivery with
+correct headers + body (asserted via `respx`), and 201 contract holding when
+the callback target returns 500 or is unreachable.
 
 Validate the spec locally (optional):
 
